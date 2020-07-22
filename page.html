@@ -1,0 +1,41 @@
+<html>
+  <head>
+    <title>ESP Web Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+  </head>
+  <body>
+    <h1>ESP Web Server</h1>
+    <div id="picker"></div>
+    <input type="checkbox" id="continuous" />
+    <label for="continuous"> Change continuously?</label><br />
+    <script>
+      var colorPicker = new iro.ColorPicker("#picker", {
+        color: "rgb({red},{green},{blue})",
+      });
+      colorPicker.on("color:change", function(color) {
+        var checkBox = document.getElementById("continuous");
+        if (checkBox.checked == false) {
+          return;
+        }
+        color = color.rgb;
+        const Http = new XMLHttpRequest();
+        const url = "/?r=" + color.r + "&g=" + color.g + "&b=" + color.b;
+        Http.open("GET", url);
+        Http.send();
+      });
+      colorPicker.on("input:end", function(color) {
+        var checkBox = document.getElementById("continuous");
+        if (checkBox.checked == true) {
+          return;
+        }
+        color = color.rgb;
+        const Http = new XMLHttpRequest();
+        const url = "/?r=" + color.r + "&g=" + color.g + "&b=" + color.b;
+        Http.open("GET", url);
+        Http.send();
+      });
+    </script>
+  </body>
+</html>
