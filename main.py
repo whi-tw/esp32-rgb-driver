@@ -23,7 +23,6 @@ if wlan is None:
 # Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
 print("ESP OK")
 
-
 led = rgbled(0, 5, 2)
 
 
