@@ -8,33 +8,31 @@
   <body>
     <h1>ESP Web Server</h1>
     <div id="picker"></div>
-    <input type="checkbox" id="continuous" />
-    <label for="continuous"> Change continuously?</label><br />
     <script>
+      var lock = false;
+      var prevColor = 0;
       var colorPicker = new iro.ColorPicker("#picker", {
-        color: "rgb({red},{green},{blue})",
+        // color: "rgb({red},{green},{blue})",
+        color: "rgb(0,0,0)",
       });
-      colorPicker.on("color:change", function(color) {
-        var checkBox = document.getElementById("continuous");
-        if (checkBox.checked == false) {
-          return;
-        }
-        color = color.rgb;
-        const Http = new XMLHttpRequest();
-        const url = "/?r=" + color.r + "&g=" + color.g + "&b=" + color.b;
-        Http.open("GET", url);
-        Http.send();
+      colorPicker.on("input:start", function(color) {
+        prevColor = color;
       });
       colorPicker.on("input:end", function(color) {
-        var checkBox = document.getElementById("continuous");
-        if (checkBox.checked == true) {
+        if (lock) {
+          colorPicker.color.set(prevColor.rgb);
+          console.log("here");
           return;
         }
+        console.log(color);
+        lock = true;
         color = color.rgb;
         const Http = new XMLHttpRequest();
         const url = "/?r=" + color.r + "&g=" + color.g + "&b=" + color.b;
+        console.log(url);
         Http.open("GET", url);
         Http.send();
+        lock = false;
       });
     </script>
   </body>

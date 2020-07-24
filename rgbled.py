@@ -1,20 +1,22 @@
 import machine
-import uasyncio as asyncio
+try:
+    import uasyncio as asyncio
+except ModuleNotFoundError:
+    import asyncio
 
 
 class CHANNEL:
-    def __init__(self, color: int, pin: int, frequency: int, pwmmax: int, duty_map: {int: int}):
+    def __init__(self, color: int, pin: int, frequency: int, duty_map: {int: int}):
         self.FREQUENCY = frequency
         self.COLOR = color
         self.PIN = pin
-        self.PWMMAX = pwmmax
         self._state = 0
         self.DUTY_MAP = duty_map
         self.setup()
 
     def setup(self):
         self.PWM = machine.PWM(machine.Pin(self.PIN),
-                               freq=self.FREQUENCY, duty=self.PWMMAX)
+                               freq=self.FREQUENCY, duty=0)
 
     def state(self, new_state=None):
         if new_state is not None:
@@ -41,12 +43,9 @@ class rgbled:
         for i in range(0, 256):
             duty_map[i] = self.rgb_to_duty(i)
 
-        self.RED = CHANNEL(rgbled.RED, rpin, frequency,
-                           self.PWMMAX, duty_map)
-        self.GREEN = CHANNEL(rgbled.GREEN, gpin, frequency,
-                             self.PWMMAX, duty_map)
-        self.BLUE = CHANNEL(rgbled.BLUE, bpin, frequency,
-                            self.PWMMAX, duty_map)
+        self.RED = CHANNEL(rgbled.RED, rpin, frequency, duty_map)
+        self.GREEN = CHANNEL(rgbled.GREEN, gpin, frequency, duty_map)
+        self.BLUE = CHANNEL(rgbled.BLUE, bpin, frequency, duty_map)
 
     async def killer(self, r: (CHANNEL, int), g: (CHANNEL, int), b: (CHANNEL, int)):
         while True:
@@ -55,9 +54,6 @@ class rgbled:
             await asyncio.sleep(0.1)
 
     def changeto(self, r: int, g: int, b: int, time=0):
-        await self._changeto(r, g, b, time)
-
-    async def _changeto(self, r: int, g: int, b: int, time=0):
         loop = asyncio.get_event_loop()
         loop.create_task(self.transition(r, time, self.RED))
         loop.create_task(self.transition(g, time, self.GREEN))
@@ -91,5 +87,5 @@ class rgbled:
                 await asyncio.sleep(step_time)
 
     def rgb_to_duty(self, val):
-        new = int(abs((val * self.PWMMAX/255) - 1023))
+        new = int(abs((val * self.PWMMAX/255)))
         return new

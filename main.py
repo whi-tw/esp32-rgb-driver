@@ -12,8 +12,6 @@ try:
 except:
     import socket
 
-led = machine.Pin(2, machine.Pin.OUT)
-
 wlan = wifimgr.get_connection()
 if wlan is None:
     print("Could not initialize the network connection.")
@@ -23,7 +21,7 @@ if wlan is None:
 # Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
 print("ESP OK")
 
-led = rgbled(0, 5, 2)
+led = rgbled(14, 15, 4)
 
 
 def web_page():
@@ -42,16 +40,31 @@ def web_page():
     <h1>ESP Web Server</h1>
     <div id="picker"></div>
     <script>
+      var lock = false;
       var colorPicker = new iro.ColorPicker("#picker", {{
         color: "rgb({red},{green},{blue})",
+        // color: "rgb(0,0,0)",
+      }});
+      var prevColor = colorPicker.color;
+
+      colorPicker.on("input:start", function(color) {{
+        prevColor = color;
       }});
       colorPicker.on("input:end", function(color) {{
+        if (lock) {{
+          colorPicker.color.set(prevColor.rgb);
+          console.log("here");
+          return;
+        }}
+        console.log(color);
+        lock = true;
         color = color.rgb;
         const Http = new XMLHttpRequest();
         const url = "/?r=" + color.r + "&g=" + color.g + "&b=" + color.b;
         console.log(url);
-        Http.open("GET", url);
+        Http.open("GET", url, false);
         Http.send();
+        lock = false;
       }});
     </script>
   </body>
@@ -81,11 +94,12 @@ while True:
         print(request)
         m = r.match(request)
         if m:
+            machine.freq(160000000)
             print("interesting request")
             red = int(m.group(1))
             green = int(m.group(2))
             blue = int(m.group(3))
-            led.changeto(red, green, blue)
+            led.changeto(red, green, blue, 1)
             response = "OK"
         else:
             response = web_page()
@@ -94,6 +108,7 @@ while True:
         conn.send('Connection: close\n\n')
         conn.sendall(response)
         conn.close()
+        machine.freq(80000000)
     except OSError as e:
         conn.close()
         print('Connection closed')
