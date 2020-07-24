@@ -23,54 +23,108 @@ print("ESP OK")
 
 led = rgbled(26, 25, 33)  # phy 7, 8, 9
 
-
-def web_page():
-    red = led.RED.state()
-    green = led.GREEN.state()
-    blue = led.BLUE.state()
-
-    html = """<html>
+page_start = """<html>
   <head>
     <title>ESP Web Server</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:," />
+    <style>
+      a.button {
+        display: inline-block;
+        padding: 0.3em 1.2em;
+        margin: 0 0.1em 0.1em 0;
+        border: 0.16em solid #000;
+        border-radius: 2em;
+        box-sizing: border-box;
+        text-decoration: none;
+        font-family: "Roboto", sans-serif;
+        font-weight: 600;
+        color: #000;
+        /* text-shadow: 0 0.04em 0.04em rgba(0, 0, 0, 0.35); */
+        text-align: center;
+        transition: all 0.2s;
+      }
+      a.button:hover {
+        border-color: rgba(0, 0, 0, 0.5);
+        cursor: pointer;
+      }
+      @media all and (max-width: 30em) {
+        a.button {
+          display: block;
+          margin: 0.2em auto;
+        }
+      }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
   </head>
   <body>
     <h1>ESP Web Server</h1>
     <div id="picker"></div>
+    <div>
+      <a class="button" style="background-color:rgb(255, 0, 0)">Red</a>
+      <a class="button" style="background-color:rgb(0, 255, 0)">Green</a>
+      <a class="button" style="background-color:rgb(0, 0, 255)">Blue</a><br />
+      <a class="button" style="background-color:rgb(0, 0, 0)">Off</a>
+      <a class="button" style="background-color:rgb(255, 255, 255)">White</a>
+    </div>
     <script>
+      function buttonClick(evt) {
+        console.log(evt);
+        var cs = evt.srcElement.style.backgroundColor;
+        var color = cs
+          .split("(")[1]
+          .split(")")[0]
+          .split(", ");
+        colorRequest(color[0], color[1], color[2]);
+        colorPicker.color.set(cs);
+      }
+      window.addEventListener("load", function() {
+        var bns = document.getElementsByClassName("button");
+        for (i = 0; i < bns.length; i++) {
+          bns[i].addEventListener("click", buttonClick, false);
+        }
+      });
       var lock = false;
-      var colorPicker = new iro.ColorPicker("#picker", {{
-        color: "rgb({red},{green},{blue})",
-        // color: "rgb(0,0,0)",
-      }});
-      var prevColor = colorPicker.color;
-
-      colorPicker.on("input:start", function(color) {{
+      function colorRequest(r, g, b) {
+        console.log("rgb(" + r + ", " + g + ", " + b + ")");
+        lock = true;
+        const Http = new XMLHttpRequest();
+        const url = "/?r=" + r + "&g=" + g + "&b=" + b;
+        console.log(url);
+        Http.open("GET", url);
+        Http.send();
+        lock = false;
+      }
+    </script>
+    <script>
+      var prevColor = 0;
+      var colorPicker = new iro.ColorPicker("#picker", {
+        """
+page_middle = 'color: "rgb({red},{green},{blue})",'
+page_end = """});
+      colorPicker.on("input:start", function(color) {
         prevColor = color;
-      }});
-      colorPicker.on("input:end", function(color) {{
-        if (lock) {{
+      });
+      colorPicker.on("input:end", function(color) {
+        if (lock) {
           colorPicker.color.set(prevColor.rgb);
           console.log("here");
           return;
-        }}
-        console.log(color);
-        lock = true;
+        }
         color = color.rgb;
-        const Http = new XMLHttpRequest();
-        const url = "/?r=" + color.r + "&g=" + color.g + "&b=" + color.b;
-        console.log(url);
-        Http.open("GET", url, false);
-        Http.send();
-        lock = false;
-      }});
+        colorRequest(color.r, color.g, color.b);
+      });
     </script>
   </body>
 </html>
 """
-    return html.format(red=red, green=green, blue=blue)
+
+
+def web_page():
+    red = led.RED.state()
+    green = led.GREEN.state()
+    blue = led.BLUE.state()
+    return page_middle.format(red=red, green=green, blue=blue)
 
 
 try:
@@ -93,6 +147,7 @@ while True:
         conn.settimeout(None)
         print(request)
         m = r.match(request)
+        big_send = False
         if m:
             print("interesting request")
             red = int(m.group(1))
@@ -101,7 +156,7 @@ while True:
             led.changeto(red, green, blue, 1)
             response = "OK"
         else:
-            response = web_page()
+            response = "{}\n{}\n{}".format(page_start, web_page(), page_end)
         conn.send('HTTP/1.1 200 OK\n')
         conn.send('Content-Type: text/html\n')
         conn.send('Connection: close\n\n')
