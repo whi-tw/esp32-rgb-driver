@@ -1,8 +1,5 @@
 import machine
-try:
-    import uasyncio as asyncio
-except ModuleNotFoundError:
-    import asyncio
+import uasyncio as asyncio
 
 
 class CHANNEL:

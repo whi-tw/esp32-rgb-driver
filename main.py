@@ -21,7 +21,7 @@ if wlan is None:
 # Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
 print("ESP OK")
 
-led = rgbled(14, 15, 4)
+led = rgbled(26, 25, 33)  # phy 7, 8, 9
 
 
 def web_page():
@@ -94,7 +94,6 @@ while True:
         print(request)
         m = r.match(request)
         if m:
-            machine.freq(160000000)
             print("interesting request")
             red = int(m.group(1))
             green = int(m.group(2))
@@ -108,7 +107,6 @@ while True:
         conn.send('Connection: close\n\n')
         conn.sendall(response)
         conn.close()
-        machine.freq(80000000)
     except OSError as e:
         conn.close()
         print('Connection closed')
