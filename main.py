@@ -3,6 +3,8 @@ import re
 import gc
 import machine
 
+import uasyncio as asyncio
+
 try:
     import tinyweb
 except:
@@ -34,9 +36,8 @@ def are_lights_on() -> bool:
 on_off = TouchAction(15, 500, toggle=True, on_action=(led.changeto, (255, 255, 255, 0)),
                      off_action=(led.changeto, (0, 0, 0, 0)), toggle_state_on_func=are_lights_on)
 
-app = tinyweb.webserver()
-
-# Index page
+loop = asyncio.get_event_loop()
+app = tinyweb.webserver(backlog=1)
 
 
 @app.route('/')
@@ -62,6 +63,17 @@ async def colors(data):
 async def set_colors(data):
     led.changeto(int(data["red"]), int(data["green"]),
                  int(data["blue"]), int(data["time"]))
+    yield '{'
+    yield '"status": "OK"'
+    yield '}'
+
+
+@app.resource('/api/looping', method='POST')
+async def loop_control(data):
+    if data["enabled"]:
+        loop.create_task(led.do_loop())
+    else:
+        led.looping = False
     yield '{'
     yield '"status": "OK"'
     yield '}'

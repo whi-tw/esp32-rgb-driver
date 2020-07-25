@@ -43,24 +43,52 @@
       <a class="button" style="background-color:rgb(0, 0, 255)">Blue</a><br />
       <a class="button" style="background-color:rgb(0, 0, 0)">Off</a>
       <a class="button" style="background-color:rgb(255, 255, 255)">White</a>
+      <a
+        class="button"
+        id="rainbow"
+        style="background-image: linear-gradient(to right, red,orange,yellow,green,blue,indigo,violet); "
+        >Rainbow</a
+      >
     </div>
     <script>
       function buttonClick(evt) {
-        console.log(evt);
+        if (evt.srcElement.id == "rainbow") {
+          lock = true;
+          const rq = new XMLHttpRequest();
+          rq.onreadystatechange = function() {
+            if (rq.readyState == 4 && rq.status == 200) {
+              lock = false;
+            }
+          };
+          const url = "/api/looping";
+          const data = {
+            enabled: true,
+          };
+          rq.open("POST", url);
+          rq.setRequestHeader("Content-Type", "application/json");
+          rq.send(JSON.stringify(data));
+          return;
+        }
         var cs = evt.srcElement.style.backgroundColor;
         var color = cs
           .split("(")[1]
           .split(")")[0]
           .split(", ");
         colorPicker.color.set(cs);
-        colorRequest(color[0], color[1], color[2], 1);
       }
       var lock = false;
 
-      function colorRequest(r, g, b, t = 1) {
+      function colorRequest(r, g, b, t = 1, ignore = false) {
+        if (lock && !ignore) {
+          return;
+        }
         lock = true;
-
         const rq = new XMLHttpRequest();
+        rq.onreadystatechange = function() {
+          if (rq.readyState == 4 && rq.status == 200) {
+            lock = false;
+          }
+        };
         const url = "/api/set_colors";
         const data = {
           red: r,
@@ -68,11 +96,9 @@
           blue: b,
           time: t,
         };
-        rq.open("POST", url, false);
+        rq.open("POST", url);
         rq.setRequestHeader("Content-Type", "application/json");
         rq.send(JSON.stringify(data));
-
-        lock = false;
       }
       function getCurrentColors(callback) {
         const r = new XMLHttpRequest();
@@ -84,18 +110,14 @@
         r.send(null);
       }
 
-      var prevColor = 0;
       var colorPicker = new iro.ColorPicker("#picker");
-      colorPicker.on("input:start", function(color) {
-        prevColor = color;
+      colorPicker.on("color:change", function(color) {
+        color = color.rgb;
+        colorRequest(color.r, color.g, color.b);
       });
       colorPicker.on("input:end", function(color) {
-        if (lock) {
-          colorPicker.color.set(prevColor.rgb);
-          return;
-        }
         color = color.rgb;
-        colorRequest(color.r, color.g, color.b, 0);
+        colorRequest(color.r, color.g, color.b);
       });
       window.addEventListener("load", function() {
         var initialColor = getCurrentColors(function(cb) {
