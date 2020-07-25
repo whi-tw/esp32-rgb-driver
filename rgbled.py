@@ -15,7 +15,7 @@ class CHANNEL:
         self.PWM = machine.PWM(machine.Pin(self.PIN),
                                freq=self.FREQUENCY, duty=0)
 
-    def state(self, new_state=None):
+    def state(self, new_state=None) -> int:
         if new_state is not None:
             self.PWM.duty(self.DUTY_MAP[new_state])
             self._state = new_state
@@ -44,23 +44,31 @@ class rgbled:
         self.GREEN = CHANNEL(rgbled.GREEN, gpin, frequency, duty_map)
         self.BLUE = CHANNEL(rgbled.BLUE, bpin, frequency, duty_map)
 
-    async def killer(self, r: (CHANNEL, int), g: (CHANNEL, int), b: (CHANNEL, int)):
-        while True:
-            if r[0].state() == r[1] and g[0].state() == g[1] and b[0].state() == b[1]:
-                return
-            await asyncio.sleep(0.1)
+        self.current_action = (None, None, None)
+
+    def colors(self) -> (int, int, int):
+        return (self.RED.state(), self.GREEN.state(), self.BLUE.state())
 
     def changeto(self, r: int, g: int, b: int, time=0):
+        for action in self.current_action:
+            try:
+                asyncio.cancel(action)
+                print("cancelled")
+            except AttributeError as e:
+                if "pend_throw" in e.args[0]:
+                    continue
+                else:
+                    raise
+
         loop = asyncio.get_event_loop()
-        loop.create_task(self.transition(r, time, self.RED))
-        loop.create_task(self.transition(g, time, self.GREEN))
-        loop.create_task(self.transition(b, time, self.BLUE))
-        loop.run_until_complete(self.killer(
-            (self.RED, r),
-            (self.GREEN, g),
-            (self.BLUE, b)
-        ))
-        loop.close()
+        self.current_action = (
+            self.transition(r, time, self.RED),
+            self.transition(g, time, self.GREEN),
+            self.transition(b, time, self.BLUE)
+        )
+        print(self.current_action)
+        for action in self.current_action:
+            loop.create_task(action)
 
     async def transition(self, value: int, time: int, led: CHANNEL):
         old = led.state()
@@ -83,6 +91,6 @@ class rgbled:
                 led.state(x)
                 await asyncio.sleep(step_time)
 
-    def rgb_to_duty(self, val):
+    def rgb_to_duty(self, val) -> int:
         new = int(abs((val * self.PWMMAX/255)))
         return new

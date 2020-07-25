@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>RGB Controller</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <style>
+      a.button {
+        display: inline-block;
+        padding: 0.3em 1.2em;
+        margin: 0 0.1em 0.1em 0;
+        border: 0.16em solid #000;
+        border-radius: 2em;
+        box-sizing: border-box;
+        text-decoration: none;
+        font-family: "Roboto", sans-serif;
+        font-weight: 600;
+        color: #000;
+        /* text-shadow: 0 0.04em 0.04em rgba(0, 0, 0, 0.35); */
+        text-align: center;
+        transition: all 0.2s;
+      }
+      a.button:hover {
+        border-color: rgba(0, 0, 0, 0.5);
+        cursor: pointer;
+      }
+      @media all and (max-width: 30em) {
+        a.button {
+          display: block;
+          margin: 0.2em auto;
+        }
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+  </head>
+  <body>
+    <h1>ESP Web Server</h1>
+    <div id="picker"></div>
+    <div>
+      <a class="button" style="background-color:rgb(255, 0, 0)">Red</a>
+      <a class="button" style="background-color:rgb(0, 255, 0)">Green</a>
+      <a class="button" style="background-color:rgb(0, 0, 255)">Blue</a><br />
+      <a class="button" style="background-color:rgb(0, 0, 0)">Off</a>
+      <a class="button" style="background-color:rgb(255, 255, 255)">White</a>
+    </div>
+    <script>
+      function buttonClick(evt) {
+        console.log(evt);
+        var cs = evt.srcElement.style.backgroundColor;
+        var color = cs
+          .split("(")[1]
+          .split(")")[0]
+          .split(", ");
+        colorPicker.color.set(cs);
+        colorRequest(color[0], color[1], color[2], 1);
+      }
+      var lock = false;
+
+      function colorRequest(r, g, b, t = 1) {
+        lock = true;
+
+        const rq = new XMLHttpRequest();
+        const url = "/api/set_colors";
+        const data = {
+          red: r,
+          green: g,
+          blue: b,
+          time: t,
+        };
+        rq.open("POST", url, false);
+        rq.setRequestHeader("Content-Type", "application/json");
+        rq.send(JSON.stringify(data));
+
+        lock = false;
+      }
+      function getCurrentColors(callback) {
+        const r = new XMLHttpRequest();
+        r.onreadystatechange = function() {
+          if (r.readyState == 4 && r.status == 200) callback(r.responseText);
+        };
+        const url = "/api/get_colors";
+        r.open("GET", url, false);
+        r.send(null);
+      }
+
+      var prevColor = 0;
+      var colorPicker = new iro.ColorPicker("#picker");
+      colorPicker.on("input:start", function(color) {
+        prevColor = color;
+      });
+      colorPicker.on("input:end", function(color) {
+        if (lock) {
+          colorPicker.color.set(prevColor.rgb);
+          return;
+        }
+        color = color.rgb;
+        colorRequest(color.r, color.g, color.b, 0);
+      });
+      window.addEventListener("load", function() {
+        var initialColor = getCurrentColors(function(cb) {
+          try {
+            var colors = JSON.parse(cb);
+            colorPicker.color.set(
+              "rgb(" + colors.red + "," + colors.green + "," + colors.blue + ")"
+            );
+          } catch (err) {}
+        });
+        var bns = document.getElementsByClassName("button");
+        for (i = 0; i < bns.length; i++) {
+          bns[i].addEventListener("click", buttonClick, false);
+        }
+      });
+    </script>
+  </body>
+</html>

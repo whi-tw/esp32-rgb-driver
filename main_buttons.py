@@ -1,4 +1,29 @@
-<html>
+# Complete project details at https://RandomNerdTutorials.com
+import re
+import gc
+
+import wifimgr
+import machine
+
+from rgbled import rgbled
+
+try:
+    import usocket as socket
+except:
+    import socket
+
+wlan = wifimgr.get_connection()
+if wlan is None:
+    print("Could not initialize the network connection.")
+    while True:
+        pass  # you shall not pass :D
+
+# Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
+print("ESP OK")
+
+led = rgbled(26, 25, 33)  # phy 7, 8, 9
+
+page_start = """<html>
   <head>
     <title>ESP Web Server</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -50,8 +75,8 @@
           .split("(")[1]
           .split(")")[0]
           .split(", ");
-        colorRequest(color[0], color[1], color[2]);
         colorPicker.color.set(cs);
+        colorRequest(color[0], color[1], color[2], 1);
       }
       window.addEventListener("load", function() {
         var bns = document.getElementsByClassName("button");
@@ -60,21 +85,24 @@
         }
       });
       var lock = false;
-      function colorRequest(r, g, b) {
-        console.log("rgb(" + r + ", " + g + ", " + b + ")");
+      function colorRequest(r, g, b, t = 1) {
         lock = true;
         const Http = new XMLHttpRequest();
-        const url = "/?r=" + r + "&g=" + g + "&b=" + b;
+        const url = "/?r=" + r + "&g=" + g + "&b=" + b + "&t=" + t;
         console.log(url);
-        Http.open("GET", url);
+        Http.open("GET", url, false);
         Http.send();
         lock = false;
       }
     </script>
-    <script>
+    """
+
+page_middle = "<script>initialColor = \"rgb({red},{green},{blue})\";</script>"
+
+page_end = """    <script>
       var prevColor = 0;
       var colorPicker = new iro.ColorPicker("#picker", {
-        color: "rgb({red},{green},{blue})",
+        color: initialColor,
       });
       colorPicker.on("input:start", function(color) {
         prevColor = color;
@@ -82,12 +110,60 @@
       colorPicker.on("input:end", function(color) {
         if (lock) {
           colorPicker.color.set(prevColor.rgb);
-          console.log("here");
           return;
         }
         color = color.rgb;
-        colorRequest(color.r, color.g, color.b);
+        colorRequest(color.r, color.g, color.b, 0);
       });
     </script>
   </body>
 </html>
+"""
+
+
+def web_page():
+    red = led.RED.state()
+    green = led.GREEN.state()
+    blue = led.BLUE.state()
+    return page_middle.format(red=red, green=green, blue=blue)
+
+
+try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(('', 80))
+    s.listen(5)
+except OSError as e:
+    machine.reset()
+
+r = re.compile(r'GET\s\/\?r=(\d+)\&g\=(\d+)\&b\=(\d+)\&t\=(\d+)')
+while True:
+    try:
+        if gc.mem_free() < 102000:
+            gc.collect()
+        conn, addr = s.accept()
+        conn.settimeout(3.0)
+        print('Got a connection from %s' % str(addr))
+        request = conn.recv(1024)
+        conn.settimeout(None)
+        print(request)
+        m = r.match(request)
+        big_send = False
+        if m:
+            print("interesting request")
+            red = int(m.group(1))
+            green = int(m.group(2))
+            blue = int(m.group(3))
+            time = int(m.group(4))
+            led.changeto(red, green, blue, time)
+            response = "OK"
+        else:
+            response = "{}\n{}\n{}".format(page_start, web_page(), page_end)
+        conn.send('HTTP/1.1 200 OK\n')
+        conn.send('Content-Type: text/html\n')
+        conn.send('Connection: close\n\n')
+        conn.sendall(response)
+        conn.close()
+    except OSError as e:
+        conn.close()
+        print('Connection closed')
