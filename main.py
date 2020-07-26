@@ -68,10 +68,10 @@ async def set_colors(data):
     yield '}'
 
 
-@app.resource('/api/looping', method='POST')
-async def loop_control(data):
+@app.resource('/api/rainbow', method='POST')
+async def rainbow_control(data):
     if data["enabled"]:
-        loop.create_task(led.do_loop())
+        loop.create_task(led.do_rainbow())
     else:
         led.looping = False
     yield '{'
