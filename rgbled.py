@@ -31,12 +31,13 @@ class rgbled:
     GREEN = 1
     BLUE = 2
 
-    def __init__(self, rpin, gpin, bpin):
+    def __init__(self, rpin, gpin, bpin, state_change_callback=None):
         self.rpin = rpin
         self.gpin = gpin
         self.bpin = bpin
         self.FREQUENCY = 1000
         self.PWMMAX = 1023
+        self.state_change_callback = state_change_callback
         self.setup(self.rpin, self.gpin, self.bpin, self.FREQUENCY)
 
     def setup(self, rpin, gpin, bpin, frequency):
@@ -51,17 +52,39 @@ class rgbled:
         self.current_action = (None, None, None)
         self.looping = False
 
+    def report_state_change(self):
+        if not self.state_change_callback:
+            return
+        event = {
+            "red": self.RED.state(),
+            "green": self.GREEN.state(),
+            "blue": self.BLUE.state(),
+            "rainbow": self.looping
+        }
+        self.state_change_callback("rgbled", event)
+
     def colors(self) -> (int, int, int):
         return (self.RED.state(), self.GREEN.state(), self.BLUE.state())
 
+    def hslcolors(self) -> (int, float, float):
+        return colorlib.rgb_to_hsl(self.RED.state(), self.GREEN.state(), self.BLUE.state())
+
     async def do_rainbow(self):
         self.looping = True
+        self.report_state_change()
         h, _, _ = colorlib.rgb_to_hsl(*self.colors())
+
+        # move smoothly to the edge of the circle
+        self.changeto_hsl(h, 1, 0.5, time=0.5, loop_cmd=True)
+        while self.hslcolors() != (h, 1, 0.5):
+            await asyncio.sleep_ms(10)
+
         while self.looping:
             self.changeto_hsl(h, 1, 0.5, loop_cmd=True)
             await asyncio.sleep_ms(100)
             h = (h + 1 if h < 360 else 1)
         self.looping = False
+        self.report_state_change()
 
     def changeto_hsl(self, h: float, s: float, l: float, time=0, loop_cmd=False):
         r, g, b = colorlib.hsl_to_rgb(h, s, l)
@@ -95,6 +118,7 @@ class rgbled:
         step_time = time / steps
         if time == 0:
             led.state(value)
+            self.report_state_change()
             return
         if(target > old):
             # Going up!
@@ -106,3 +130,4 @@ class rgbled:
             for x in range(old, target-1, -1):
                 led.state(x)
                 await asyncio.sleep(step_time)
+        self.report_state_change()

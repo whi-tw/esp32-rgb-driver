@@ -56,17 +56,13 @@
           lock = true;
           const rq = new XMLHttpRequest();
           rq.onreadystatechange = function() {
-            if (rq.readyState == 4 && rq.status == 200) {
+            if (rq.readyState == 4) {
               lock = false;
             }
           };
           const url = "/api/rainbow";
-          const data = {
-            enabled: true,
-          };
           rq.open("POST", url);
-          rq.setRequestHeader("Content-Type", "application/json");
-          rq.send(JSON.stringify(data));
+          rq.send("enabled=true");
           return;
         }
         var cs = evt.srcElement.style.backgroundColor;
@@ -74,7 +70,7 @@
           .split("(")[1]
           .split(")")[0]
           .split(", ");
-        colorPicker.color.set(cs);
+        colorRequest(...color);
       }
       var lock = false;
 
@@ -89,43 +85,38 @@
             lock = false;
           }
         };
-        const url = "/api/set_colors";
-        const data = {
-          red: r,
-          green: g,
-          blue: b,
-          time: t,
-        };
+        const url = "/api/colors";
+        const data = "red=" + r + "&green=" + g + "&blue=" + b + "&time=" + t;
+
         rq.open("POST", url);
-        rq.setRequestHeader("Content-Type", "application/json");
-        rq.send(JSON.stringify(data));
+        rq.send(data);
       }
-      function getCurrentColors(callback) {
+      function getCurrentState(callback) {
         const r = new XMLHttpRequest();
         r.onreadystatechange = function() {
           if (r.readyState == 4 && r.status == 200) callback(r.responseText);
         };
-        const url = "/api/get_colors";
-        r.open("GET", url, false);
+        const url = "/api/state";
+        r.open("GET", url);
         r.send(null);
       }
 
       var colorPicker = new iro.ColorPicker("#picker");
-      colorPicker.on("color:change", function(color) {
-        color = color.rgb;
-        colorRequest(color.r, color.g, color.b);
-      });
-      colorPicker.on("input:end", function(color) {
-        color = color.rgb;
-        colorRequest(color.r, color.g, color.b);
-      });
       window.addEventListener("load", function() {
-        var initialColor = getCurrentColors(function(cb) {
+        var initialColor = getCurrentState(function(cb) {
           try {
             var colors = JSON.parse(cb);
             colorPicker.color.set(
               "rgb(" + colors.red + "," + colors.green + "," + colors.blue + ")"
             );
+            colorPicker.on("input:change", function(color) {
+              color = color.rgb;
+              colorRequest(color.r, color.g, color.b);
+            });
+            colorPicker.on("input:end", function(color) {
+              color = color.rgb;
+              colorRequest(color.r, color.g, color.b);
+            });
           } catch (err) {}
         });
         var bns = document.getElementsByClassName("button");
@@ -133,6 +124,30 @@
           bns[i].addEventListener("click", buttonClick, false);
         }
       });
+
+      var source = new EventSource("events");
+      source.onmessage = function(event) {
+        try {
+          var data = JSON.parse(event.data);
+          if (data["source"] == "rgbled") {
+            colorPicker.color.set({
+              r: data["event"]["red"],
+              g: data["event"]["green"],
+              b: data["event"]["blue"],
+            });
+            document.getElementById("rainbow").style.borderColor = data[
+              "event"
+            ]["rainbow"]
+              ? "green"
+              : "black";
+          }
+        } catch (err) {
+          console.log(event.data);
+        }
+      };
+      source.onerror = function(error) {
+        console.log(error);
+      };
     </script>
   </body>
 </html>
