@@ -22,12 +22,15 @@ if wlan is None:
 # Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
 print("ESP OK")
 
+
+event_sinks = set()
 eventlist = []
 
 
 def add_to_eventlist(source: str, event):
     global eventlist
-    eventlist.append({"source": source, "event": event})
+    if event_sinks:
+        eventlist.append({"source": source, "event": event})
 
 
 led = rgbled(26, 25, 33, add_to_eventlist)  # phy 7, 8, 9
@@ -43,7 +46,6 @@ on_off = TouchAction(15, 500, toggle=True, on_action=(led.changeto, (255, 255, 2
 loop = asyncio.get_event_loop()
 
 app = picoweb.WebApp(__name__)
-event_sinks = set()
 
 
 @ app.route('/')
