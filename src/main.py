@@ -35,15 +35,29 @@ def add_to_eventlist(source: str, event):
 
 led = rgbled(26, 25, 33, add_to_eventlist)  # phy 7, 8, 9
 
-
-def are_lights_on() -> bool:
-    return any(c > 0 for c in led.colors())
-
-
-on_off = TouchAction(15, 500, toggle=True, on_action=(led.changeto, (255, 255, 255, 0)),
-                     off_action=(led.changeto, (0, 0, 0, 0)), toggle_state_on_func=are_lights_on)
-
 loop = asyncio.get_event_loop()
+
+
+def on_off_switch(pin):
+    if any(c > 0 for c in led.colors()):
+        led.changeto(0, 0, 0, 0)
+    else:
+        led.changeto(255, 255, 255, 0)
+
+
+def toggle_rainbow():
+    if led.looping:
+        led.looping = False
+    else:
+        loop.create_task(led.do_rainbow())
+
+
+machine.Pin(0, machine.Pin.IN).irq(
+    trigger=machine.Pin.IRQ_RISING, handler=on_off_switch)  # set up internal interrupt for pin 0 to toggle white
+
+
+toggle_colorloop = TouchAction(15, 500, action=toggle_rainbow, toggle=False)
+
 
 app = picoweb.WebApp(__name__)
 

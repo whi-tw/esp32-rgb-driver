@@ -34,33 +34,11 @@ class TouchAction():
                     await asyncio.sleep(0.1)
                     if self.toggle:
                         self.loop.create_task(self.do_toggle())
+                    else:
+                        self.action()
                 await asyncio.sleep(0.1)
             except ValueError:
                 pass
 
     def listen_for_touch(self):
         self.loop.create_task(self._listen_for_touch())
-
-
-# class Touchy():
-
-#     def __init__(self, toggle: int, cycle: int, threshold=500):
-#         self.toggle_pin = toggle
-#         self.cycle_pin = cycle
-#         self.THRESHOLD = threshold
-
-#         self.touchpads = []
-
-#         self.setup()
-
-#     def setup(self):
-#         self.TOGGLE = machine.TouchPad(machine.Pin(self.toggle_pin))
-#         self.CYCLE = machine.TouchPad(machine.Pin(self.cycle_pin))
-
-#         self.TOGGLE.config(self.THRESHOLD)
-#         self.CYCLE.config(self.THRESHOLD)
-
-#         # Actions
-#         self.off_action = (None, None)
-#         self.on_action = (None, None)
-#         self.off_check = (None, None)
