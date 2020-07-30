@@ -126,24 +126,23 @@
       });
 
       var source = new EventSource("events");
-      source.onmessage = function(event) {
+      source.addEventListener("rgbled", function(event) {
         try {
           var data = JSON.parse(event.data);
-          if (data["source"] == "rgbled") {
-            colorPicker.color.set({
-              r: data["event"]["red"],
-              g: data["event"]["green"],
-              b: data["event"]["blue"],
-            });
-            document.getElementById("rainbow").style.borderColor = data[
-              "event"
-            ]["rainbow"]
-              ? "green"
-              : "black";
-          }
+          colorPicker.color.set({
+            r: data["red"],
+            g: data["green"],
+            b: data["blue"],
+          });
+          document.getElementById("rainbow").style.borderColor = data["rainbow"]
+            ? "green"
+            : "black";
         } catch (err) {
           console.log(event.data);
         }
+      });
+      source.onmessage = function(event) {
+        console.log(event);
       };
       source.onerror = function(error) {
         console.log(error);

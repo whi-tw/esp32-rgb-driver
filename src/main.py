@@ -27,10 +27,10 @@ event_sinks = set()
 eventlist = []
 
 
-def add_to_eventlist(source: str, event):
+def add_to_eventlist(event, e_type=""):
     global eventlist
     if event_sinks:
-        eventlist.append({"source": source, "event": event})
+        eventlist.append((event, e_type))
 
 
 led = rgbled(26, 25, 33, add_to_eventlist)  # phy 7, 8, 9
@@ -117,13 +117,15 @@ def events(req, resp):
     return False
 
 
-def push_event(ev):
+def push_event(ev, e_type=""):
     global event_sinks
     to_del = set()
-
     for resp in event_sinks:
         try:
-            await resp.awrite("data: %s\n\n" % json.dumps(ev))
+            await resp.awrite("{}data: {}\n\n".format(
+                ("event: {}\n".format(e_type) if e_type else ""),
+                json.dumps(ev))
+            )
         except OSError as e:
             print("Event source %r disconnected (%r)" % (resp, e))
             await resp.aclose()
@@ -139,7 +141,7 @@ def push_events():
     global eventlist
     while True:
         for event in eventlist:
-            await push_event(event)
+            await push_event(event[0], event[1])
             eventlist.remove(event)
         await asyncio.sleep_ms(10)
 

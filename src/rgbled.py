@@ -61,7 +61,7 @@ class rgbled:
             "blue": self.BLUE.state(),
             "rainbow": self.looping
         }
-        self.state_change_callback("rgbled", event)
+        self.state_change_callback(event, "rgbled")
 
     def colors(self) -> (int, int, int):
         return (self.RED.state(), self.GREEN.state(), self.BLUE.state())
